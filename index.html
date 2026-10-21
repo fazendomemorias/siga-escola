@@ -802,6 +802,7 @@
             }
 
             document.getElementById('feedback-badge').className = `px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${badgeStyle}`;
+            document.getElementById('feedback-badge').innerText = ({CHECK:'ENTRADA CONFIRMADA',EXIT:'SAÍDA REGISTRADA',WARNING:'ENTRADA DUPLICADA',ERROR:'NÃO REGISTRADO',OFFLINE:'SALVO OFFLINE'})[type] || '';
             document.getElementById('feedback-student-name').innerText = title;
             document.getElementById('feedback-student-info').innerText = subtitle;
             document.getElementById('feedback-student-photo').src = photoUrl;
