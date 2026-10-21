@@ -133,7 +133,7 @@
                     </div>
                     <div class="flex items-center space-x-2">
                         <span id="portaria-online-indicator" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Heartbeat Ativo
+                            <span id="hb-dot" class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> <span id="hb-text">Conectando...</span>
                         </span>
                     </div>
                 </div>
@@ -636,7 +636,8 @@
             switchRole(session.role);
             clearInterval(heartbeatInterval); clearInterval(cantinaMonitorInterval); clearInterval(queueInterval);
             if (session.role === 'vigia') {
-                const beat = () => { if (navigator.onLine) rpc('portaria_heartbeat').catch(handleApiError); };
+                const setHb = (ok) => { const d=document.getElementById('hb-dot'), t=document.getElementById('hb-text'); if(d&&t){ d.className='w-1.5 h-1.5 rounded-full mr-1.5 '+(ok?'bg-emerald-500':'bg-rose-500'); t.innerText= ok?'Conectado ao servidor':'Sem conexão'; } };
+                const beat = () => { if (!navigator.onLine) { setHb(false); return; } rpc('portaria_heartbeat').then(()=>setHb(true)).catch(e=>{ setHb(false); handleApiError(e); }); };
                 beat(); heartbeatInterval = setInterval(beat, 10000);
             }
             queueInterval = setInterval(flushOfflineQueue, 15000);
