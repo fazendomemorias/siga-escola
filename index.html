@@ -684,16 +684,21 @@
         function getQueue() { try { return JSON.parse(localStorage.getItem('siga_queue') || '[]'); } catch (e) { return []; } }
         function setQueue(q) { localStorage.setItem('siga_queue', JSON.stringify(q)); }
 
+        let flushing = false;
         async function flushOfflineQueue() {
-            if (!session || !navigator.onLine) return;
+            if (flushing || !session || !navigator.onLine) return;
             let q = getQueue(); if (!q.length) return;
+            flushing = true;
+            try {
             const remaining = [];
             for (const item of q) {
                 try { await rpc('process_scan', { p_token: item.token, p_type: item.mode, p_origin: 'QR_OFFLINE', p_at: item.at }); }
-                catch (e) { if (e.auth) { return; } remaining.push(item); }
+                catch (e) { if (e.auth) { return; } remaining.push(item, ...q.slice(q.indexOf(item) + 1)); break; }
             }
-            setQueue(remaining);
+            const added = getQueue().slice(q.length);
+            setQueue(remaining.concat(added));
             if (remaining.length < q.length) { renderVigiaRecentList(); }
+            } finally { flushing = false; }
         }
 
         async function sendScan(token, type, origin, studentId) {
