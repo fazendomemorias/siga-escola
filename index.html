@@ -66,7 +66,7 @@
             <!-- Profile & Status Badges -->
             <div class="flex items-center space-x-2">
                 <!-- Sync Status Badge -->
-                <div id="sync-status-badge" class="hidden sm:flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <div id="sync-status-badge" class="flex items-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
                     <span id="sync-status-text">Online</span>
                 </div>
@@ -157,8 +157,8 @@
                     </h3>
                     <div class="flex gap-2">
                         <input type="text" id="vigia-search-input" placeholder="Digite nome ou matrícula do aluno..." 
-                               class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-                        <button onclick="searchStudentVigia()" class="bg-slate-800 text-white px-4 py-2.5 rounded-xl font-medium text-sm hover:bg-slate-700">
+                               class="flex-1 min-w-0 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        <button onclick="searchStudentVigia()" class="shrink-0 bg-slate-800 text-white px-4 py-2.5 rounded-xl font-medium text-sm hover:bg-slate-700">
                             Buscar
                         </button>
                     </div>
