@@ -167,6 +167,8 @@
                     <div id="vigia-search-results" class="mt-3 space-y-2 hidden"></div>
                 </div>
 
+                <!-- Aviso de sincronização (leituras offline pendentes/rejeitadas) -->
+                <div id="sync-alert" class="hidden mt-4 rounded-2xl border p-4 text-sm"></div>
                 <!-- Recent Activity Feed (Vigia) -->
                 <div class="mt-6">
                     <h3 class="text-sm font-semibold text-slate-700 mb-3 flex justify-between items-center">
@@ -641,6 +643,7 @@
                 beat(); heartbeatInterval = setInterval(beat, 10000);
             }
             queueInterval = setInterval(flushOfflineQueue, 15000);
+            renderSyncAlert();
             flushOfflineQueue();
         }
 
@@ -684,6 +687,26 @@
         function getQueue() { try { return JSON.parse(localStorage.getItem('siga_queue') || '[]'); } catch (e) { return []; } }
         function setQueue(q) { localStorage.setItem('siga_queue', JSON.stringify(q)); }
 
+        const MODE_LABEL = { ENTRADA: 'Entrada', SAIDA: 'Saída antecipada' };
+        function getSyncLog() { try { return JSON.parse(localStorage.getItem('siga_sync_log') || '[]'); } catch (e) { return []; } }
+        function setSyncLog(l) { localStorage.setItem('siga_sync_log', JSON.stringify(l)); }
+        function fmtDT(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: TIMEZONE }); } catch (e) { return iso; } }
+        function clearSyncLog() { setSyncLog([]); renderSyncAlert(); }
+        function toggleSyncDetails() { const d = document.getElementById('sync-details'); if (d) d.classList.toggle('hidden'); }
+        function renderSyncAlert() {
+            const box = document.getElementById('sync-alert'); if (!box) return;
+            const pending = getQueue(), log = getSyncLog();
+            if (!pending.length && !log.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+            const lost = log.filter(x => x.kind === 'NAO_REGISTRADO'), dup = log.filter(x => x.kind === 'DUPLICADO');
+            const row = x => `<li class="py-2 border-t border-slate-200"><strong>${esc(x.name || 'Aluno não identificado')}</strong> <span class="text-slate-500">(${esc(x.token || '')})</span><br>${esc(MODE_LABEL[x.mode] || x.mode)} lida às ${esc(fmtDT(x.at))}<br><span class="${x.kind === 'DUPLICADO' ? 'text-amber-700' : 'text-rose-700'}">${x.kind === 'DUPLICADO' ? 'Duplicada (já constava registro): ' : 'NÃO FOI REGISTRADA: '}${esc(x.message || x.code || '')}</span></li>`;
+            let head = '';
+            if (lost.length) head += `<div class="font-bold text-rose-800"><i class="fa-solid fa-triangle-exclamation"></i> ${lost.length} leitura(s) offline NÃO foram registradas. Registre manualmente (busca manual) ou avise a administração.</div>`;
+            if (dup.length) head += `<div class="font-semibold text-amber-800 mt-1">${dup.length} leitura(s) offline eram duplicadas (o aluno já tinha registro).</div>`;
+            if (pending.length) head += `<div class="font-semibold text-slate-700 mt-1"><i class="fa-solid fa-cloud-arrow-up"></i> ${pending.length} leitura(s) aguardando internet para enviar (ainda NÃO confirmadas).</div>`;
+            const tone = lost.length ? 'bg-rose-50 border-rose-300' : (pending.length ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-300');
+            box.className = 'mt-4 rounded-2xl border p-4 text-sm ' + tone;
+            box.innerHTML = head + `<div class="mt-2 flex gap-2"><button onclick="toggleSyncDetails()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-medium">Ver detalhes</button>${log.length ? '<button onclick="clearSyncLog()" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-xs font-medium">Já conferi, limpar avisos</button>' : ''}</div><ul id="sync-details" class="hidden mt-2">${pending.map(x => `<li class="py-2 border-t border-slate-200"><strong>Pendente</strong> (${esc(x.token)}): ${esc(MODE_LABEL[x.mode] || x.mode)} lida às ${esc(fmtDT(x.at))}</li>`).join('')}${log.map(row).join('')}</ul>`;
+        }
         let flushing = false;
         async function flushOfflineQueue() {
             if (flushing || !session || !navigator.onLine) return;
@@ -692,11 +715,13 @@
             try {
             const remaining = [];
             for (const item of q) {
-                try { await rpc('process_scan', { p_token: item.token, p_type: item.mode, p_origin: 'QR_OFFLINE', p_at: item.at }); }
+                try { const res = await rpc('process_scan', { p_token: item.token, p_type: item.mode, p_origin: 'QR_OFFLINE', p_at: item.at });
+                    if (res && res.success === false) { const l = getSyncLog(); l.push({ token: item.token, mode: item.mode, at: item.at, code: res.code, message: res.message, name: res.student && res.student.name, kind: (res.code === 'DUPLICATE_ENTRY' || res.code === 'ALREADY_EXITED') ? 'DUPLICADO' : 'NAO_REGISTRADO' }); setSyncLog(l); } }
                 catch (e) { if (e.auth) { return; } remaining.push(item, ...q.slice(q.indexOf(item) + 1)); break; }
             }
             const added = getQueue().slice(q.length);
             setQueue(remaining.concat(added));
+            renderSyncAlert();
             if (remaining.length < q.length) { renderVigiaRecentList(); }
             } finally { flushing = false; }
         }
@@ -711,6 +736,7 @@
             const q = getQueue();
             q.push({ token, mode: activeScannerMode, at: new Date().toISOString() });
             setQueue(q);
+            renderSyncAlert();
             showFeedbackModal('OFFLINE', 'REGISTRO SALVO OFFLINE',
                 'Leitura armazenada neste aparelho. Será enviada ao reconectar.',
                 'https://placehold.co/150x150/f59e0b/ffffff?text=OFFLINE', 'bg-amber-100 text-amber-800', 'Sem conexão. A leitura será enviada automaticamente quando a internet voltar.');
